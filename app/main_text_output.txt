@@ -1,0 +1,13 @@
+#main.py
+from fastapi import FastAPI
+from quantum_stock_prediction import predict_stock, run_quantum_prediction
+
+app = FastAPI()
+
+@app.get("/predict_stock")
+def predict_local():
+    return predict_stock()
+
+@app.get("/predict")
+def predict_quantum():
+    return run_quantum_prediction()

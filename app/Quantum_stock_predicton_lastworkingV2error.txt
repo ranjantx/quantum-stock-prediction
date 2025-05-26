@@ -1,0 +1,85 @@
+#quantum_stock_prediction.py with run_quantum_prediction() and predict_stock()
+from qiskit.circuit.library import ZZFeatureMap, RealAmplitudes
+from qiskit_machine_learning.kernels import QuantumKernel
+from qiskit.utils import algorithm_globals
+from qiskit import BasicAer, QuantumCircuit, ClassicalRegister
+import numpy as np
+from qiskit_ibm_runtime import QiskitRuntimeService, Sampler
+from fastapi import HTTPException
+
+def run_quantum_prediction():
+    print("🔄 Starting IBM Quantum prediction...")
+    try:
+        # Initialize the Qiskit Runtime Service
+        service = QiskitRuntimeService(
+            channel="ibm_quantum",
+            token="9ad7e3042518c0edaa46162da122d3dd747bc931bb6f8135cd127d747d716c66b5be5a4f469d705ef6ed0f268aec4e36ff2f3952c757586db99382765ef56c19"
+        )
+        print("🔄 Started IBM Quantum prediction...")
+
+# Use confirmed available backend
+        backend = service.backend("ibm_brisbane")
+        backend_name = backend.name if isinstance(getattr(backend, 'name'), str) else backend.name()
+        print("🔄 Initialized backend:", backend_name)
+        print("Backend type:", type(backend))
+        print("Backend name attribute type:", type(getattr(backend, 'name')))
+
+        # Define the quantum circuit ansatz
+        ansatz = RealAmplitudes(num_qubits=2, reps=1)
+        print("Ansatz created:", ansatz)
+        print("Ansatz type:", type(ansatz))
+
+        # Add classical register and measurements
+        circuit = QuantumCircuit(2, 2)  # 2 qubits, 2 classical bits
+        circuit.compose(ansatz, inplace=True)
+        
+        # Bind parameters with random values
+        num_parameters = ansatz.num_parameters
+        parameter_values = np.random.uniform(0, 2 * np.pi, num_parameters)  # Random values between 0 and 2π
+        bound_circuit = circuit.bind_parameters(parameter_values)
+        print("Parameter values:", parameter_values)
+        print("Bound circuit:", bound_circuit)
+
+        # Add measurements after binding
+        bound_circuit.measure([0, 1], [0, 1])  # Measure qubits 0 and 1 into classical bits 0 and 1
+        print("Circuit with measurements:", bound_circuit)
+
+        # Initialize Sampler with backend
+        sampler = Sampler(backend=backend)
+        print("Sampler type:", type(sampler))
+        print("Sampler run attribute type:", type(getattr(sampler, 'run')))
+        job = sampler.run(circuits=[bound_circuit])
+        print("🔄 Job submitted:", job.job_id())
+        result = job.result()
+        print("🔄 Result retrieved")
+
+        print("🔬 Raw result:", result)
+
+        # Extract quasi-distributions
+        if not hasattr(result, 'quasi_dists'):
+            raise ValueError("Result does not contain quasi-distributions.")
+
+        if not result.quasi_dists:
+            raise ValueError("No quasi-distributions found in the result.")
+
+        print("✅ Successfully retrieved quasi-distributions.")
+        print("🔍 Quasi-distributions:", result.quasi_dists)
+
+        quasi_dist = result.quasi_dists[0]
+        return {"quasi_dist": quasi_dist}
+
+    except Exception as e:
+        print("❌ Exception in run_quantum_prediction():", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+def predict_stock():
+    algorithm_globals.random_seed = 12345
+    X_train = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    y_train = np.array([0, 1, 1, 0])
+    feature_map = ZZFeatureMap(feature_dimension=2, reps=1)
+    quantum_kernel = QuantumKernel(feature_map=feature_map, quantum_instance=BasicAer.get_backend("qasm_simulator"))
+    model = QSVC(quantum_kernel=quantum_kernel)
+    model.fit(X_train, y_train)
+    test_sample = np.array([[0.5, 0.5]])
+    prediction = model.predict(test_sample)
+    return {"input": test_sample.tolist(), "predicted_class": int(prediction[0])}
