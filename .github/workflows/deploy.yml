@@ -1,5 +1,7 @@
 name: Build and Deploy to IBM Cloud Code Engine
 # This workflow builds a Docker image for the Quantum Stock Backend and deploys it to IBM Cloud Code Engine.
+# It triggers on pushes to the main branch and uses the IBM Cloud CLI to manage the deployment.
+# The Docker image is built from the current repository and pushed to the IBM Cloud Container Registry.
 
 on:
   push:
@@ -19,25 +21,26 @@ jobs:
 
       - name: Log in to IBM Cloud
         run: |
-          ibmcloud login --apikey ${{ secrets.IBM_CLOUD_API_KEY }} -r us-south
-          ibmcloud target -g Default
-          ibmcloud cr login
+          ibmcloud login --apikey ${{ secrets.IBM_CLOUD_API_KEY }} -r us-south || { echo "Login failed"; exit 1; }
+          ibmcloud target -g Default || { echo "Target failed"; exit 1; }
+          ibmcloud cr login || { echo "CR login failed"; exit 1; }
+          ibmcloud cr namespaces || { echo "Failed to list namespaces"; exit 1; }
         env:
           IBMCLOUD_CLI_VERSION: 2.34.1
 
       - name: Build and push Docker image
         run: |
           docker build -t us.icr.io/quantum-stock-prediction/quantum-stock-prediction:${{ github.sha }} .
-          docker push us.icr.io/quantum-stock-prediction/quantum-stock-prediction:${{ github.sha }}
+          docker push us.icr.io/quantum-stock-prediction/quantum-stock-prediction:${{ github.sha }} || { echo "Docker push failed"; exit 1; }
 
       - name: Deploy to IBM Code Engine
         run: |
           ibmcloud ce project create --name quantum-stock-prediction-project || ibmcloud ce project select --name quantum-stock-prediction-project
-          ibmcloud ce project current
+          ibmcloud ce project current || { echo "Failed to show current project"; exit 1; }
           ibmcloud ce application create --name quantum-stock-prediction \
             --image us.icr.io/quantum-stock-prediction/quantum-stock-prediction:${{ github.sha }} \
             --port 8000 \
             --min-scale 1 \
             --max-scale 3 \
             --env IBM_QUANTUM_TOKEN=${{ secrets.IBM_QUANTUM_TOKEN }} \
-            --wait-timeout 600
+            --wait-timeout 600 || { echo "Application creation failed"; exit 1; }
