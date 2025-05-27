@@ -33,13 +33,19 @@ jobs:
           ibmcloud target -g Default || { echo "Target failed"; exit 1; }
           ibmcloud cr login || { echo "CR login failed"; exit 1; }
           ibmcloud cr namespaces || { echo "Failed to list namespaces"; exit 1; }
-        env:
-          IBMCLOUD_CLI_VERSION: 2.34.1
 
       - name: Build and push Docker image
         run: |
           docker build -t us.icr.io/quantum-stock-prediction/quantum-stock-prediction:${{ github.sha }} .
           docker push us.icr.io/quantum-stock-prediction/quantum-stock-prediction:${{ github.sha }} || { echo "Docker push failed"; exit 1; }
+
+      - name: Configure Code Engine Registry Access
+        run: |
+          ibmcloud ce project select --name quantum-stock-prediction-project
+          ibmcloud ce registry create --name cr-pull-secret \
+            --username iamapikey \
+            --password ${{ secrets.IBM_CLOUD_API_KEY }} \
+            --server us.icr.io || { echo "Failed to create registry secret"; exit 1; }
 
       - name: Deploy to IBM Code Engine
         run: |
@@ -51,4 +57,5 @@ jobs:
             --min-scale 1 \
             --max-scale 3 \
             --env IBM_QUANTUM_TOKEN=${{ secrets.IBM_QUANTUM_TOKEN }} \
+            --image-pull-secret cr-pull-secret \
             --wait-timeout 600 || { echo "Application creation failed"; exit 1; }
