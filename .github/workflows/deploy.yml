@@ -42,6 +42,7 @@ jobs:
       - name: Configure Code Engine Registry Access
         run: |
           ibmcloud ce project select --name quantum-stock-prediction-project
+          ibmcloud ce registry delete --name cr-pull-secret --force || true
           ibmcloud ce registry create --name cr-pull-secret \
             --username iamapikey \
             --password ${{ secrets.IBM_CLOUD_API_KEY }} \
