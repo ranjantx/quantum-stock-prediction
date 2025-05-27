@@ -42,5 +42,6 @@ jobs:
             --port 8000 \
             --min-scale 1 \
             --max-scale 3 \
+            --env IBM_CLOUD_API_KEY=${{ secrets.IBM_CLOUD_API_KEY }} \
             --env IBM_QUANTUM_TOKEN=${{ secrets.IBM_QUANTUM_TOKEN }} \
             --wait-timeout 600 || { echo "Application creation failed"; exit 1; }
