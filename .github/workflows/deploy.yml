@@ -52,6 +52,7 @@ jobs:
         run: |
           ibmcloud ce project create --name quantum-stock-prediction-project || ibmcloud ce project select --name quantum-stock-prediction-project
           ibmcloud ce project current || { echo "Failed to show current project"; exit 1; }
+          ibmcloud ce application delete --name quantum-stock-prediction --force || true
           ibmcloud ce application create --name quantum-stock-prediction \
             --image us.icr.io/quantum-stock-prediction/quantum-stock-prediction:${{ github.sha }} \
             --port 8000 \
