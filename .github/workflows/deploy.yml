@@ -13,11 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-   
+
       - name: Set up IBM Cloud CLI
         run: |
           curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
           ibmcloud --version
+
+      - name: Install IBM Cloud Container Registry Plugin
+        run: |
+          ibmcloud plugin install container-registry -r 'IBM Cloud'
 
       - name: Log in to IBM Cloud
         run: |
@@ -42,6 +46,5 @@ jobs:
             --port 8000 \
             --min-scale 1 \
             --max-scale 3 \
-            --env IBM_CLOUD_API_KEY=${{ secrets.IBM_CLOUD_API_KEY }} \
             --env IBM_QUANTUM_TOKEN=${{ secrets.IBM_QUANTUM_TOKEN }} \
             --wait-timeout 600 || { echo "Application creation failed"; exit 1; }
